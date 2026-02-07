@@ -25,7 +25,13 @@ jobs:
 
       - name: Build Project
         run: |
-          msbuild Xenos.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }} /m
+          msbuild Xenos.sln `
+          /p:Configuration=${{ matrix.configuration }} `
+          /p:Platform=${{ matrix.platform }} `
+          /p:CL_MPCount=4 `
+          /p:CharacterSet=Unicode `
+          /p:AdditionalCompilerOptions="/D_CRT_SECURE_NO_WARNINGS /Zc:strictStrings- /FIiterator /FImemory" `
+          /m
 
       - name: Prepare Artifacts
         shell: pwsh
