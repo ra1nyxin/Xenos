@@ -339,7 +339,7 @@ DWORD64 getNTDLL64()
     if (0 != ntdll64)
         return ntdll64;
 
-    ntdll64 = GetModuleHandle64(L"ntdll.dll");
+    ntdll64 = GetModuleHandle64((wchar_t*)L"ntdll.dll");
     return ntdll64;
 }
 
@@ -384,7 +384,7 @@ DWORD64 getLdrGetProcedureAddress()
     // lazy search, there is no need to use binsearch for just one function
     for (DWORD i = 0; i < ied.NumberOfFunctions; i++)
     {
-        if (!cmpMem64("LdrGetProcedureAddress", modBase + nameTable[i], sizeof("LdrGetProcedureAddress")))
+        if (!cmpMem64((void*)"LdrGetProcedureAddress", modBase + nameTable[i], sizeof("LdrGetProcedureAddress")))
             continue;
         else
             return modBase + rvaTable[ordTable[i]];
