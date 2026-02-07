@@ -3,8 +3,8 @@ name: Build and Release Xenos
 on:
   push:
     tags:
-      - 'v*'
-  workflow_dispatch:
+      - 'v*' 
+  workflow_dispatch: 
 
 jobs:
   build:
@@ -30,40 +30,51 @@ jobs:
       - name: Prepare Artifacts
         shell: pwsh
         run: |
-          $dir = "build-output"
+          $dir = "to_upload"
           if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir }
-          Get-ChildItem -Recurse -Include *.exe, *.pdb | Where-Object { $_.FullName -like "*Release*" } | Copy-Item -Destination $dir
+          Get-ChildItem -Path "build" -Recurse -Include *.exe, *.pdb | Copy-Item -Destination $dir
+          if ((Get-ChildItem $dir).Count -eq 0) {
+            Get-ChildItem -Recurse -Include Xenos*.exe, Xenos*.pdb | Where-Object { $_.FullName -like "*Release*" } | Copy-Item -Destination $dir
+          }
 
       - name: Upload Build Artifacts
-        uses: actions/actions-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
           name: Xenos-${{ matrix.platform }}
-          path: build-output/
+          path: to_upload/
 
   release:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
     steps:
-      - name: Download all artifacts
+      - name: Download Win32 Artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          name: Xenos-Win32
+          path: release_files/x86
 
-      - name: Zip Artifacts
+      - name: Download x64 Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: Xenos-x64
+          path: release_files/x64
+
+      - name: Create Zip
         run: |
-          cd artifacts
-          zip -r ../Xenos_Release.zip .
+          cd release_files
+          zip -r ../Xenos_Full_Pack.zip .
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            Xenos_Release.zip
+          files: Xenos_Full_Pack.zip
           name: Xenos Release ${{ github.ref_name }}
           body: |
             Automated build for version ${{ github.ref_name }}
-            Built using GitHub Actions.
+            Includes both x86 and x64 versions.
           draft: false
           prerelease: false
         env:
