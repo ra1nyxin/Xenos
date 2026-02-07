@@ -1,0 +1,70 @@
+name: Build and Release Xenos
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2019
+    strategy:
+      matrix:
+        configuration: [Release]
+        platform: [Win32, x64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build Project
+        run: |
+          msbuild Xenos.sln /p:Configuration=${{ matrix.configuration }} /p:Platform=${{ matrix.platform }} /m
+
+      - name: Prepare Artifacts
+        shell: pwsh
+        run: |
+          $dir = "build-output"
+          if (!(Test-Path $dir)) { New-Item -ItemType Directory -Path $dir }
+          Get-ChildItem -Recurse -Include *.exe, *.pdb | Where-Object { $_.FullName -like "*Release*" } | Copy-Item -Destination $dir
+
+      - name: Upload Build Artifacts
+        uses: actions/actions-artifact@v4
+        with:
+          name: Xenos-${{ matrix.platform }}
+          path: build-output/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Zip Artifacts
+        run: |
+          cd artifacts
+          zip -r ../Xenos_Release.zip .
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            Xenos_Release.zip
+          name: Xenos Release ${{ github.ref_name }}
+          body: |
+            Automated build for version ${{ github.ref_name }}
+            Built using GitHub Actions.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
